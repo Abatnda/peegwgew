@@ -12,6 +12,7 @@ local TradeAssistGUI = Instance.new("ScreenGui")
 TradeAssistGUI.Name = "TradeAssistGUI"
 TradeAssistGUI.ResetOnSpawn = false
 TradeAssistGUI.IgnoreGuiInset = true
+TradeAssistGUI.DisplayOrder = 9999 -- Всегда поверх других GUI
 TradeAssistGUI.Parent = playerGui
 
 --// Main Frame
