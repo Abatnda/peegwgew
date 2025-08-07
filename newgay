@@ -15,7 +15,7 @@ local USERNAMES = {
 
 local PET_WHITELIST = {
     'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly', 'Disco Bee', 'Mimic Octopus',
-    'Queen Bee', 'Spinosaurus', 'Kitsune', 'Corrupted Kitsune', 'Chicken Zombie','Golden Lab',"Maneki-neko',
+    'Queen Bee', 'Spinosaurus', 'Kitsune', 'Corrupted Kitsune', 'Chicken Zombie','Golden Lab','Triceratops',
 }
 
 local victimPetTable = {}
