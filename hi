@@ -1,0 +1,248 @@
+-- AutoJoiner для Discord (User Token)
+-- НАСТРОЙКИ - ЗАПОЛНИТЕ ЭТО!
+local DISCORD_TOKEN = "MTM4OTczMDgzMjEyNTY2MTI1NA.GmfKfX.YwFmxwcrjypRCTmPTusg4d8f3apeGrcqMKO0ew"    -- ТОКЕН ПОЛЬЗОВАТЕЛЯ Discord
+local CHANNEL_ID = "1423378814020620298"          -- ID канала с логами
+local AUTO_JOIN = true
+
+local AutoJoiner = {
+    DiscordToken = DISCORD_TOKEN,
+    ChannelId = CHANNEL_ID,
+    Enabled = AUTO_JOIN,
+    Cooldown = 2,
+    LastJobId = "",
+    IsMonitoring = false
+}
+
+-- Получение сообщений из Discord канала
+function AutoJoiner:GetDiscordMessages()
+    if not self.DiscordToken or self.DiscordToken == "YOUR_USER_TOKEN_HERE" then
+        error("❌ Укажите USER TOKEN Discord в настройках!")
+        return
+    end
+    
+    local success, messages = pcall(function()
+        local httpService = game:GetService("HttpService")
+        local url = "https://discord.com/api/v10/channels/" .. self.ChannelId .. "/messages?limit=10"
+        
+        local headers = {
+            ["Authorization"] = self.DiscordToken,  -- User token напрямую
+            ["Content-Type"] = "application/json",
+            ["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        
+        local response = httpService:GetAsync(url, true, headers)
+        local data = httpService:JSONDecode(response)
+        
+        return data
+    end)
+    
+    if success and messages then
+        for i, message in ipairs(messages) do
+            self:CheckForJobId(message.content)
+        end
+        return true
+    else
+        print("[AutoJoiner] ❌ Ошибка получения сообщений: " .. tostring(messages))
+        return false
+    end
+end
+
+-- Мониторинг Discord канала в реальном времени
+function AutoJoiner:StartDiscordMonitor()
+    if self.IsMonitoring then return end
+    
+    self.IsMonitoring = true
+    print("[AutoJoiner] 📡 Начинаем мониторинг Discord канала...")
+    
+    spawn(function()
+        local lastMessageId = ""
+        
+        while self.IsMonitoring do
+            local success = pcall(function()
+                local httpService = game:GetService("HttpService")
+                local url = "https://discord.com/api/v10/channels/" .. self.ChannelId .. "/messages?limit=1"
+                
+                local headers = {
+                    ["Authorization"] = self.DiscordToken,
+                    ["Content-Type"] = "application/json",
+                    ["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                }
+                
+                local response = httpService:GetAsync(url, true, headers)
+                local data = httpService:JSONDecode(response)
+                
+                if data and #data > 0 then
+                    local latestMessage = data[1]
+                    
+                    -- Проверяем новое сообщение
+                    if latestMessage.id ~= lastMessageId then
+                        lastMessageId = latestMessage.id
+                        print("[AutoJoiner] 📨 Новое сообщение в Discord")
+                        self:CheckForJobId(latestMessage.content)
+                    end
+                end
+            end)
+            
+            if not success then
+                print("[AutoJoiner] ⚠️ Ошибка мониторинга, повтор через 10 сек...")
+            end
+            
+            wait(3) -- Проверяем каждые 3 секунды
+        end
+    end)
+end
+
+-- Поиск JobId в тексте
+function AutoJoiner:ExtractJobId(text)
+    if not text then return nil end
+    
+    -- Основной паттерн для UUID
+    local pattern = "(%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x)"
+    local jobId = string.match(text, pattern)
+    
+    -- Дополнительные форматы
+    if not jobId then
+        local patterns = {
+            "📡%s*(%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x)",
+            "🌐%s*(%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x)",
+            "Server%s*(%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x)",
+            "JobID:%s*(%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x)",
+            "`(%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x)`"
+        }
+        
+        for _, pat in ipairs(patterns) do
+            jobId = string.match(text, pat)
+            if jobId then break end
+        end
+    end
+    
+    return jobId
+end
+
+-- Проверка сообщения на JobId
+function AutoJoiner:CheckForJobId(text)
+    local jobId = self:ExtractJobId(text)
+    
+    if jobId and jobId ~= self.LastJobId and self.Enabled then
+        print("[AutoJoiner] 🎯 Обнаружен новый JobId: " .. jobId)
+        self.LastJobId = jobId
+        self:JoinGame(jobId)
+        return true
+    end
+    
+    return false
+end
+
+-- Присоединение к игре
+function AutoJoiner:JoinGame(jobId)
+    print("[AutoJoiner] 🚀 Присоединяемся к серверу: " .. jobId)
+    
+    local success, result = pcall(function()
+        local TeleportService = game:GetService("TeleportService")
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+        
+        if not LocalPlayer then
+            error("Игрок не найден")
+        end
+        
+        -- Получаем текущий placeId игры
+        local placeId = game.PlaceId
+        
+        print("[AutoJoiner] 📍 Телепортация на PlaceId: " .. placeId)
+        print("[AutoJoiner] 🆔 JobId: " .. jobId)
+        
+        -- Мгновенная телепортация
+        TeleportService:TeleportToPlaceInstance(placeId, jobId, LocalPlayer)
+    end)
+    
+    if success then
+        print("[AutoJoiner] ✅ Успешно присоединяемся!")
+    else
+        print("[AutoJoiner] ❌ Ошибка присоединения: " .. tostring(result))
+    end
+end
+
+-- Проверка подключения к Discord
+function AutoJoiner:TestConnection()
+    print("[AutoJoiner] 🔗 Проверка подключения к Discord...")
+    
+    local success, result = pcall(function()
+        local httpService = game:GetService("HttpService")
+        local url = "https://discord.com/api/v10/users/@me"
+        
+        local headers = {
+            ["Authorization"] = self.DiscordToken,
+            ["Content-Type"] = "application/json"
+        }
+        
+        local response = httpService:GetAsync(url, true, headers)
+        local userData = httpService:JSONDecode(response)
+        
+        return userData
+    end)
+    
+    if success and result.username then
+        print("[AutoJoiner] ✅ Подключение успешно! Пользователь: " .. result.username)
+        return true
+    else
+        print("[AutoJoiner] ❌ Ошибка подключения: Неверный токен или нет доступа")
+        return false
+    end
+end
+
+-- Команды управления
+function AutoJoiner:Toggle()
+    self.Enabled = not self.Enabled
+    if self.Enabled then
+        print("[AutoJoiner] ✅ Авто-присоединение ВКЛЮЧЕНО")
+    else
+        print("[AutoJoiner] ❌ Авто-присоединение ВЫКЛЮЧЕНО")
+    end
+end
+
+function AutoJoiner:Status()
+    print("[AutoJoiner] 📊 Статус:")
+    print("   Авто-присоединение: " .. (self.Enabled and "ВКЛ" or "ВЫКЛ"))
+    print("   Мониторинг: " .. (self.IsMonitoring and "АКТИВЕН" or "ВЫКЛ"))
+    print("   Канал Discord: " .. self.ChannelId)
+    print("   Последний JobId: " .. (self.LastJobId ~= "" and self.LastJobId or "нет"))
+end
+
+function AutoJoiner:Stop()
+    self.IsMonitoring = false
+    self.Enabled = false
+    print("[AutoJoiner] 🛑 Мониторинг остановлен")
+end
+
+-- Инициализация
+spawn(function()
+    wait(2)
+    
+    print("========================================")
+    print("🎮 Discord AutoJoiner запущен!")
+    print("📝 Используется USER TOKEN")
+    print("========================================")
+    
+    -- Проверяем подключение
+    if AutoJoiner:TestConnection() then
+        -- Запускаем мониторинг
+        AutoJoiner:StartDiscordMonitor()
+        
+        -- Проверяем последние сообщения
+        AutoJoiner:GetDiscordMessages()
+    else
+        print("❌ Не удалось подключиться к Discord")
+        print("🔧 Проверьте токен и ID канала")
+    end
+end)
+
+-- Глобальные команды
+getgenv().AutoJoiner = AutoJoiner
+
+print("⚡ Команды:")
+print("   AutoJoiner:Toggle() - Вкл/Выкл авто-присоединение")
+print("   AutoJoiner:Status() - Статус")
+print("   AutoJoiner:Stop() - Остановить")
+
+return AutoJoiner
